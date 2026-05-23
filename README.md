@@ -275,31 +275,6 @@ kableExtra
 ```
 
 
-
-Instale-os com:
-
-
-
-```r
-
-install.packages(c(
-
-&#x20; "tidyverse",
-
-&#x20; "lme4",
-
-&#x20; "performance",
-
-&#x20; "knitr",
-
-&#x20; "kableExtra"
-
-))
-
-```
-
-
-
 \---
 
 
