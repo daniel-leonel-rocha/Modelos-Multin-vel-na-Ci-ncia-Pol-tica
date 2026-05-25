@@ -272,6 +272,10 @@ knitr
 
 kableExtra
 
+lmerTest
+
+sjPlot
+
 ```
 
 
