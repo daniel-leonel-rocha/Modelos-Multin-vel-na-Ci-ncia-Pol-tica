@@ -21,6 +21,8 @@ library(lme4)
 library(performance)
 library(knitr)
 library(kableExtra)
+library(lmerTest)
+library(sjPlot)
 
 # =========================================================
 # 2. REPRODUTIBILIDADE ------------------------------------
@@ -332,22 +334,32 @@ summary(modelo_interacao)
 # 16. EFEITO MARGINAL DA RENDA AO LONGO DO PIB ------------
 # =========================================================
 
+# Sequência de valores de PIB
 pib_seq <- seq(5, 55, by = 0.5)
 
-efeito_renda <- 0.927256 + (-0.018980) * pib_seq
+# Extração dinâmica dos coeficientes
+coef_renda <- fixef(modelo_interacao)["renda_z"]
 
+coef_interac <- fixef(modelo_interacao)["renda_z:pib"]
+
+# Efeito marginal da renda ao longo do PIB
+efeito_renda <- coef_renda + coef_interac * pib_seq
+
+# Base para gráfico
 df_efeito <- data.frame(
   pib = pib_seq,
   efeito_renda = efeito_renda
 )
 
-ponto_zero <- 0.927256 / 0.018980
+# Ponto em que o efeito cruza zero
+ponto_zero <- -coef_renda / coef_interac
 
+# Gráfico
 ggplot(
   df_efeito,
   aes(x = pib, y = efeito_renda)
 ) +
-  geom_smooth(
+  geom_line(
     color = "#1b9e77",
     size = 1.2
   ) +
@@ -384,22 +396,20 @@ ggplot(
 # 17. VISUALIZAÇÃO DA INTERAÇÃO ---------------------------
 # =========================================================
 
+# Valores específicos de PIB
 pib_vals <- c(6, 10, 14)
 
+# Sequência de renda padronizada
 renda_seq <- seq(
   -3,
   3,
   length.out = 100
 )
 
-efeito_renda_inter <- lapply(
-  pib_vals,
-  function(pib) {
-    0.927256 + (-0.018980) * pib
-  }
-) %>%
-  unlist()
+# Inclinações da renda em diferentes níveis de PIB
+efeito_renda_inter <- coef_renda + coef_interac * pib_vals
 
+# Base para gráfico
 df_interacao <- expand.grid(
   renda_z = renda_seq,
   tipo = c(
@@ -414,7 +424,7 @@ df_interacao <- expand.grid(
     efeito = case_when(
       
       tipo == "Renda isolada" ~
-        0.927256 * renda_z,
+        coef_renda * renda_z,
       
       tipo == paste0("Renda × PIB = ", pib_vals[1]) ~
         efeito_renda_inter[1] * renda_z,
@@ -430,6 +440,7 @@ df_interacao <- expand.grid(
     
   )
 
+# Gráfico
 ggplot(
   df_interacao,
   aes(
