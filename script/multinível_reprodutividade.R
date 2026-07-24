@@ -16,6 +16,8 @@
 # 1. PACOTES ----------------------------------------------
 # =========================================================
 
+rm(list = ls())
+
 library(tidyverse)
 library(lme4)
 library(performance)
@@ -107,7 +109,7 @@ dados <- dados %>%
       efeito_pais +
       efeito_ind +
       rnorm(n(), 0, 1)
-
+    
   ) %>%
   mutate(
     avaliacao_democracia =
@@ -123,6 +125,14 @@ summary(dados)
 # =========================================================
 # 8. MODELOS MULTINÍVEL -----------------------------------
 # =========================================================
+
+# A estimação é realizada de forma incremental. Primeiro,
+# ajusta-se um modelo nulo apenas com intercepto aleatório.
+# Em seguida, adicionam-se as variáveis individuais (nível 1)
+# e, por fim, as variáveis contextuais (nível 2).
+
+# Esse procedimento permite avaliar o ganho de ajuste em
+# cada etapa da modelagem.
 
 # 8.1 Modelo nulo -----------------------------------------
 # Apenas intercepto aleatório
@@ -161,6 +171,20 @@ modelo_completo <- lmer(
 # =========================================================
 # 9. QUALIDADE DOS AJUSTES --------------------------------
 # =========================================================
+
+# Após a estimação dos modelos, são comparadas algumas
+# medidas de qualidade de ajuste.
+
+# São apresentados:
+
+# • Log-verossimilhança
+# • AIC
+# • BIC
+# • R² marginal
+# • ICC
+
+# Essas estatísticas permitem avaliar quanto a inclusão
+# sucessiva de variáveis melhora o desempenho do modelo.
 
 modelos_ml <- list(
   Nulo = modelo_nulo,
@@ -234,6 +258,10 @@ ggplot(
 # 11. TESTES DE RAZÃO DE VEROSSIMILHANÇA (LRT) ------------
 # =========================================================
 
+# Os testes de razão de verossimilhança comparam modelos
+# aninhados e verificam se a inclusão de novos parâmetros
+# produz melhora estatisticamente significativa no ajuste.
+
 teste_n1_vs_nulo <- anova(
   modelo_nulo,
   modelo_nivel1
@@ -278,11 +306,27 @@ kable(
 # 13. RESUMO DO MODELO COMPLETO ---------------------------
 # =========================================================
 
+# Após identificar o modelo com melhor desempenho,
+# apresenta-se seu resumo completo, incluindo coeficientes,
+# erros-padrão e componentes de variância.
+
 summary(modelo_completo)
 
 # =========================================================
-# 14. INTERCEPTOS ALEATÓRIOS DOS PAÍSES -----------------------
+# 14. INTERCEPTOS ALEATÓRIOS DOS PAÍSES -------------------
 # =========================================================
+
+# Até este ponto foi estimado um modelo com interceptos
+# aleatórios por país.
+
+# Além dos coeficientes fixos, modelos multinível permitem
+# recuperar os efeitos específicos de cada grupo por meio da
+# função ranef(). Esses valores representam o desvio do
+# intercepto de cada país em relação ao intercepto médio da
+# população.
+
+# A visualização abaixo ilustra essa heterogeneidade entre
+# os países simulados.
 
 efeitos_pais <- ranef(modelo_completo)$pais_id %>%
   as_tibble(rownames = "pais_id") %>%
@@ -312,6 +356,19 @@ ggplot(
 # 14.1. INCLINAÇÕES ALEATÓRIAS DA RENDA -------------------
 # =========================================================
 
+# O modelo anterior assume que o efeito da renda é idêntico
+# em todos os países.
+
+# Entretanto, em muitos problemas substantivos essa hipótese
+# pode ser excessivamente restritiva.
+
+# O modelo abaixo permite que a inclinação associada à renda
+# varie entre países, estimando um coeficiente específico
+# para cada contexto.
+
+# Dessa forma, além de diferenças nos interceptos, admite-se
+# também heterogeneidade na intensidade do efeito da renda.
+
 modelo_inclinacao <- lmer(
   avaliacao_democracia ~
     renda_z +
@@ -324,6 +381,7 @@ modelo_inclinacao <- lmer(
   data = dados
 )
 
+# Extração das inclinações estimadas para cada país
 efeitos_inclinacao <- ranef(modelo_inclinacao)$pais_id %>%
   as_tibble(rownames = "pais_id")
 
@@ -335,6 +393,7 @@ efeitos_inclinacao <- efeitos_inclinacao %>%
     )
   )
 
+# Visualização da heterogeneidade das inclinações
 ggplot(
   efeitos_inclinacao,
   aes(
@@ -353,6 +412,19 @@ ggplot(
 # =========================================================
 # 15. MODELO COM INTERAÇÃO ENTRE NÍVEIS -------------------
 # =========================================================
+
+# A recuperação dos efeitos aleatórios descreve diferenças
+# entre países.
+
+# Um passo adicional consiste em investigar se uma
+# característica contextual modifica o efeito de uma variável
+# individual.
+
+# Esse tipo de hipótese é conhecido como interação entre
+# níveis (cross-level interaction).
+
+# Neste exemplo, verifica-se se o efeito da renda individual
+# varia de acordo com o PIB do país.
 
 # Interação:
 # renda individual × PIB do país
@@ -375,6 +447,14 @@ summary(modelo_interacao)
 # =========================================================
 # 16. EFEITO MARGINAL DA RENDA AO LONGO DO PIB ------------
 # =========================================================
+
+# A interação entre renda e PIB implica que o efeito da renda
+# deixa de ser constante.
+
+# Assim, calcula-se o efeito marginal da renda para uma
+# sequência de valores de PIB, permitindo visualizar como a
+# influência da renda se altera ao longo do contexto
+# econômico.
 
 # Sequência de valores de PIB
 pib_seq <- seq(5, 55, by = 0.5)
@@ -437,6 +517,13 @@ ggplot(
 # =========================================================
 # 17. VISUALIZAÇÃO DA INTERAÇÃO ---------------------------
 # =========================================================
+
+# Para facilitar a interpretação substantiva da interação,
+# apresentam-se as inclinações da renda em diferentes níveis
+# de PIB.
+
+# O gráfico ilustra como o efeito da renda muda conforme o
+# contexto econômico dos países.
 
 # Valores específicos de PIB
 pib_vals <- c(6, 10, 14)
@@ -503,6 +590,19 @@ ggplot(
 # 18. COMPARAÇÃO ENTRE MQO, FE E MLH ----------------------
 # =========================================================
 
+# Para concluir a simulação, estimam-se três estratégias
+# amplamente utilizadas em pesquisas comparadas:
+
+# (1) MQO convencional (complete pooling);
+
+# (2) Modelo com efeitos fixos (no pooling);
+
+# (3) Modelo multinível (partial pooling).
+
+# Essa comparação evidencia as diferenças entre as três
+# abordagens e ilustra em quais situações a modelagem
+# multinível tende a produzir estimativas mais eficientes.
+
 # 18.1 MQO convencional -----------------------------------
 # Complete pooling
 
@@ -533,6 +633,9 @@ modelo_fe <- lm(
 # 19. COMPARAÇÃO DOS MODELOS ------------------------------
 # =========================================================
 
+# Os critérios de informação (AIC e BIC) permitem comparar o
+# desempenho relativo das diferentes estratégias de estimação.
+
 AIC(
   modelo_mqo,
   modelo_fe,
@@ -548,6 +651,13 @@ BIC(
 # =========================================================
 # 20. RESUMOS FINAIS --------------------------------------
 # =========================================================
+
+# Por fim, apresentam-se os resumos dos principais modelos
+# estimados ao longo da simulação.
+
+# Essa etapa facilita a comparação direta entre MQO,
+# efeitos fixos, modelo multinível e interação entre níveis,
+# sintetizando todo o processo desenvolvido no script.
 
 summary(modelo_mqo)
 summary(modelo_fe)
