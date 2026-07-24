@@ -281,7 +281,7 @@ kable(
 summary(modelo_completo)
 
 # =========================================================
-# 14. EFEITOS ALEATÓRIOS DOS PAÍSES -----------------------
+# 14. INTERCEPTOS ALEATÓRIOS DOS PAÍSES -----------------------
 # =========================================================
 
 efeitos_pais <- ranef(modelo_completo)$pais_id %>%
@@ -304,7 +304,49 @@ ggplot(
   coord_flip() +
   labs(
     x = "País (ID)",
-    y = "Efeito aleatório"
+    y = "Intercepto aleatório estimado"
+  ) +
+  theme_minimal(base_size = 8)
+
+# =========================================================
+# 14.1. INCLINAÇÕES ALEATÓRIAS DA RENDA -------------------
+# =========================================================
+
+modelo_inclinacao <- lmer(
+  avaliacao_democracia ~
+    renda_z +
+    trabalha +
+    sexo +
+    pib +
+    desemprego +
+    inflacao +
+    (1 + renda_z | pais_id),
+  data = dados
+)
+
+efeitos_inclinacao <- ranef(modelo_inclinacao)$pais_id %>%
+  as_tibble(rownames = "pais_id")
+
+efeitos_inclinacao <- efeitos_inclinacao %>%
+  mutate(
+    pais_id = factor(
+      pais_id,
+      levels = pais_id[order(renda_z)]
+    )
+  )
+
+ggplot(
+  efeitos_inclinacao,
+  aes(
+    x = pais_id,
+    y = renda_z
+  )
+) +
+  geom_col(fill = "#1f77b4") +
+  coord_flip() +
+  labs(
+    x = "País",
+    y = "Desvio do efeito da renda"
   ) +
   theme_minimal(base_size = 8)
 
